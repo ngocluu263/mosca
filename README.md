@@ -1,6 +1,8 @@
 Mosca&nbsp;&nbsp;&nbsp;[![Build Status](https://travis-ci.org/mcollina/mosca.png)](https://travis-ci.org/mcollina/mosca)&nbsp;&nbsp;[![Coverage Status](https://coveralls.io/repos/mcollina/mosca/badge.png)](https://coveralls.io/r/mcollina/mosca)
 ====================
 
+[![MOSCA](http://cloud.dynamatik.com/image/3I3I0q1M1x0E/mosca_small.png)](https://github.com/mcollina/mosca)
+
 [![NPM](https://nodei.co/npm/mosca.png)](https://nodei.co/npm/mosca/)
 
 [![NPM](https://nodei.co/npm-dl/mosca.png)](https://nodei.co/npm/mosca/)
@@ -14,13 +16,16 @@ supporting the following brokers/protocols.
 * [RabbitMQ](http://www.rabbitmq.com/) and all implementations of the [AMQP](http://www.amqp.org/) protocol.
 * [ZeroMQ](http://www.zeromq.org/) to use Mosca in a P2P fashion.
 
+NEW: you can find a test version of mosca at test.mosca.io.
+You can use ws://test.mosca.io/ to connect to the WebSocket tunnel.
+This is powered by the [docker image](#docker-support).
 
 Find out more about Mosca reading the
 [dox generated documentation](http://mcollina.github.io/mosca/docs).
 
 If you plan to use Mosca in production
 [let us know](http://twitter.com/matteocollina), we'll be more than happy to help
-you getting started and solve any issue you'll find out.
+you getting started and solve any issue you will find out.
 Also, check out our [Usage in the
 Wild](https://github.com/mcollina/mosca/wiki/Usage-in-the-Wild) wiki
 page! Feel free to add yourself! :)
@@ -28,6 +33,9 @@ page! Feel free to add yourself! :)
 Mosca can be used:
 * <a href="#standalone">Standalone</a>
 * <a href="#embedded">Embedded in another Node.js application</a>
+
+Mosca officially support only node v0.10 but v0.11.x should work too.
+Node v0.8 is not supported.
 
 ## Features
 
@@ -114,14 +122,22 @@ broker is defined. Here follows an example using Redis.
 
 A configuration file is structured in the following way:
 ```javascript
+var mosca = require('mosca');
+
 module.exports = {
   port: 4883,
+  logger: {
+    level: 'info'
+  },
   backend: {
     type: 'redis',
-    redis: require('redis'),
-    db: 12,
     port: 6379,
-    host: localhost
+    host: 'localhost'
+  },
+  persistence: {
+    factory: mosca.persistence.Redis,
+    port: 6379,
+    host: 'localhost'
   },
   secure: {
     keyPath: "/path/to/key",
@@ -472,8 +488,9 @@ httpServer.listen(3000);
 
 It is also possible to server the browserified bundle for the mqtt
 client:
+
 ```
-var http     = require('http)
+var http     = require('http')
   , express  = require('express')
   , app      = express();
   , httpServ = http.createServer(app)
@@ -486,23 +503,62 @@ mqttServ.serveBundle(app);
 httpServer.listen(3000);
 ```
 
-## Contributing
+## Docker Support
 
-Fork the repo on github and send a pull requests with topic branches.
-Do not forget to provide specs to your contribution.
+In order to use the prebuilt [Docker](http://docker.io) container
+published on the Docker Index, just run:
 
+```
+$ docker pull mattecollina/mosca
+$ docker run -p 1883:1883 -p 80:80 -v /var/db/mosca:/db mattecollina/mosca
+````
 
-### Running specs
+The command line above will persist your data in the `/var/db/mosca`
+directory of the host. You should create that folder.
 
-* Fork and clone the repository
-* Run `npm install`
-* Run `npm test`
+### Upstart
 
+You can put the following upstart script in `/etc/init/mosca.conf`
+to automatically start mosca at boot:
 
-## Coding guidelines
+```
+description "Mosca container"
+author "Matteo Collina"
+start on filesystem and started docker
+stop on runlevel [!2345]
+respawn
+script
+  # Wait for docker to finish starting up first.
+  FILE=/var/run/docker.sock
+  while [ ! -e $FILE ] ; do
+    inotifywait -t 2 -e create $(dirname $FILE)
+  done
+  /usr/bin/docker run -d -p 80:80 -p 1883:1883 -v /var/db/mosca/:/db matteocollina/mosca
+end script
+```
 
-Follow [felix](http://nodeguide.com/style.html) guidelines.
+### Build
 
+If you want to build your Mosca container, just clone this repository
+and run `$ docker build .`. This will create a container that run Mosca
+with a levelup-based database.
+
+In order to build the container, you should:
+
+```
+$ git clone https://github.com/mcollina/mosca.git
+$ cd mosca
+$ docker build -t mosca:dev .
+```
+
+In order to run the Mosca container you should:
+
+```
+$ docker run -p 1883:1883 -p 80:80 -v /var/db/mosca:/db mosca:dev
+```
+
+The command line above will persist your data in the `/var/db/mosca`
+directory of the host.
 
 ## Feedback
 
@@ -539,6 +595,9 @@ href="https://github.com/samirnaik">GitHub/samirnaik</a></td>
 <tr><th align="left">Leo Steiner</th><td><a
 href="https://github.com/ldstein">GitHub/ldstein</a></td>
 </tbody></table>
+
+## Logo
+[Sam Beck](http://two-thirty.tumblr.com)
 
 ## LICENSE - "MIT License"
 
